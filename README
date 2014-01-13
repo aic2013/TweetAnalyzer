@@ -1,0 +1,5 @@
+Configuration is possible either via environment variables or java properties.
+
+Possible configuration options:
+	BROKER_URL - The url of the ActiveMQ broker. Default is 'tcp://localhost:61616'
+	EXTRACTION_QUEUE_NAME - The name of the ActiveMQ queue for extraction. Default is 'tweet-extraction'
