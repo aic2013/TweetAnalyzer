@@ -11,7 +11,9 @@ import java.nio.charset.Charset;
 import java.nio.charset.CharsetEncoder;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -23,6 +25,10 @@ import aic2013.analyzer.filter.TextFilter;
 import aic2013.common.entities.Topic;
 import cc.mallet.classify.tui.Text2Vectors;
 import cc.mallet.topics.tui.Vectors2Topics;
+import edu.stanford.nlp.ie.AbstractSequenceClassifier;
+import edu.stanford.nlp.ie.crf.CRFClassifier;
+import edu.stanford.nlp.ling.CoreAnnotations;
+import edu.stanford.nlp.ling.CoreLabel;
 
 /**
  * @author Moritz Becker (moritz.becker@gmx.at)
@@ -37,6 +43,7 @@ public class TopicExtractorImpl implements TopicExtractor {
 	private final File vectorsFile;
 	private final File topicsFile;
 	private final TextFilter filter;
+	private final AbstractSequenceClassifier<CoreLabel> classifier;
 
 	private final CharsetEncoder asciiEncoder = Charset.forName("US-ASCII")
 			.newEncoder();
@@ -52,6 +59,9 @@ public class TopicExtractorImpl implements TopicExtractor {
 		topicsFile.deleteOnExit();
 		filter = new PrefixFilter("#", new PrefixFilter("@", new PrefixFilter(
 				"http", new GlobalPrefixFilter("RT", false, new BaseFilter()))));
+
+		classifier = CRFClassifier
+				.getClassifierNoExceptions("classifiers/english.all.3class.distsim.crf.ser.gz");
 	}
 
 	@Override
@@ -64,14 +74,15 @@ public class TopicExtractorImpl implements TopicExtractor {
 				return new HashSet<Topic>();
 			}
 
+			String filteredInput = filter.filter(input);
 			/* write input to temporary file */
 			rawTweetOutStream = new PrintStream(new FileOutputStream(
 					rawTweetFile));
-			rawTweetOutStream.print(filter.filter(input));
+			rawTweetOutStream.print(filteredInput);
 			rawTweetOutStream.close();
 			rawTweetOutStream = null;
 
-			 Text2Vectors t2v = new Text2Vectors();
+			Text2Vectors t2v = new Text2Vectors();
 
 			// form string array args and invoke main of Text2Vectors.
 			String[] argsT2v = { "--remove-stopwords", "true",
@@ -80,7 +91,7 @@ public class TopicExtractorImpl implements TopicExtractor {
 					"--keep-sequence" };
 			Text2Vectors.main(argsT2v);
 
-			 Vectors2Topics v2t = new Vectors2Topics();
+			Vectors2Topics v2t = new Vectors2Topics();
 
 			// form string array args and invoke main of Vectors2Topics.
 			String[] argsV2t = { "--num-iterations", "200",
@@ -104,7 +115,44 @@ public class TopicExtractorImpl implements TopicExtractor {
 				e.printStackTrace();
 			}
 
-			return readTopicsFromFile(topicsFile);
+			Set<Topic> extractedTopics = readTopicsFromFile(topicsFile);
+
+			// Stanford NER
+
+			List<List<CoreLabel>> out = classifier.classify(filteredInput);
+			for (List<CoreLabel> sentence : out) {
+				String prevAnnotation = null;
+				Topic prevTopic = null;
+				for (CoreLabel word : sentence) {
+					String annotation = word.get(CoreAnnotations.AnswerAnnotation.class);
+					if(annotation.equals(prevAnnotation)){
+						// put connected words that have the same annotation into the same topic
+						// like "Joe/PERSON Miller/PERSON" --> Topic(["Joe", "Miller"])
+						prevTopic.getName()[0] += " " + word.word();
+					}else if(! "O".equals(annotation)){
+						// some different annotation than the preceding one
+						prevAnnotation = annotation;
+						prevTopic = new Topic(new String[]{word.word()});
+						extractedTopics.add(prevTopic);
+					}else{
+						// we have a /O annotation
+						prevAnnotation = null;
+					}
+					System.out.print(word.word() + '/'
+							+ word.get(CoreAnnotations.AnswerAnnotation.class)
+							+ ' ');
+				}
+				System.out.println();
+			}
+			// out = classifier.classifyFile(args[1]);
+			// for (List<CoreLabel> sentence : out) {
+			// for (CoreLabel word : sentence) {
+			// System.out.print(word.word() + '/' +
+			// word.get(CoreAnnotations.AnswerAnnotation.class) + ' ');
+			// }
+			// System.out.println();
+			// }
+			return extractedTopics;
 
 		} catch (IOException e) {
 			throw new ExtractionException(e);
