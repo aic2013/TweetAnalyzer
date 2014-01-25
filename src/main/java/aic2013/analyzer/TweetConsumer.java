@@ -152,7 +152,7 @@ public class TweetConsumer {
 					} catch (SQLException e) {
 						throw new RuntimeException(e);
 					}
-					channel.basicAck(envelope.getDeliveryTag(), false);
+					// channel.basicAck(envelope.getDeliveryTag(), false);
 				} catch (ExtractionException | TwitterException e) {
 					logger.log(Level.SEVERE, null, e);
 				}
