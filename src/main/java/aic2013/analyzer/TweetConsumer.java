@@ -83,8 +83,6 @@ public class TweetConsumer {
 		System.out.println("Started extraction consumer with the following configuration:");
 		System.out.println("\tBroker: " + brokerUrl);
 		System.out.println("\t\tExtraction queue name: " + extractionQueueName);
-		System.out.println();
-		System.out.println("To shutdown the application please type 'exit'.");
 
     while (true) {
         Thread.sleep(1000);
