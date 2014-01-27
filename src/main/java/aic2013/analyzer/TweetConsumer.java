@@ -92,6 +92,7 @@ public class TweetConsumer {
 		connection = factory.newConnection();
 		channel = connection.createChannel();
     channel.queueDeclare(queueName, true, false, false, null);
+    channel.basicQos(1);
 
     System.out.println("Creating Topic Extractor...");
 
@@ -103,7 +104,7 @@ public class TweetConsumer {
 		consumer = createMessageConsumer(channel);
 
 		System.out.println("Starting to consume...");
-    channel.basicConsume(queueName, true, consumer);
+    channel.basicConsume(queueName, false, consumer);
 	}
 
 	public void close() {
@@ -152,7 +153,7 @@ public class TweetConsumer {
 					} catch (SQLException e) {
 						throw new RuntimeException(e);
 					}
-					// channel.basicAck(envelope.getDeliveryTag(), false);
+					channel.basicAck(envelope.getDeliveryTag(), false);
 				} catch (ExtractionException | TwitterException e) {
 					logger.log(Level.SEVERE, null, e);
 				}
