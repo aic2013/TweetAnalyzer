@@ -31,7 +31,7 @@ import aic2013.common.service.Neo4jService;
 public class TweetConsumer {
 	private static Logger logger = Logger.getLogger(Consumer.class.getName());
 
-	private static final String BROKER_URL = "amqp://guest:guest@localhost:5672/";
+	private static final String BROKER_URL = "amqp://localhost:5672/test";
 	private static final String EXTRACTION_QUEUE_NAME = "tweet-extraction";
 	private static final String NEO4J_JDBC_URL = "jdbc:neo4j://localhost:7474";
 
@@ -65,6 +65,8 @@ public class TweetConsumer {
 		Neo4jService neo4jService = new Neo4jService(neo4j);
 
 		ConnectionFactory factory = new ConnectionFactory();
+		factory.setUsername("test");
+		factory.setPassword("test");
 		factory.setUri(brokerUrl);
 		TweetConsumer consumer = new TweetConsumer(factory, extractionQueueName, neo4jService);
 
