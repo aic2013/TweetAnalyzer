@@ -66,7 +66,19 @@ public class TweetConsumer {
 
 		ConnectionFactory factory = new ConnectionFactory();
 		factory.setUri(brokerUrl);
-		TweetConsumer consumer = new TweetConsumer(factory, extractionQueueName, neo4jService);
+		final TweetConsumer consumer = new TweetConsumer(factory, extractionQueueName, neo4jService);
+
+    Runtime.getRuntime().addShutdownHook(new Thread() {
+        @Override
+        public void run() {
+            if (consumer != null) {
+                consumer.close();
+            }
+
+            System.out.println("Exiting");
+            System.exit(0);
+        }
+    });
 
 		System.out.println("Started extraction consumer with the following configuration:");
 		System.out.println("\tBroker: " + brokerUrl);
@@ -74,36 +86,21 @@ public class TweetConsumer {
 		System.out.println();
 		System.out.println("To shutdown the application please type 'exit'.");
 
-		BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
-		String command;
-
-		while ((command = br.readLine()) != null) {
-			if ("exit".equals(command)) {
-				break;
-			}
-		}
-
-		consumer.close();
+    while (true) {
+        Thread.sleep(1000);
+    }
 	}
 
 	public TweetConsumer(ConnectionFactory factory, String queueName, Neo4jService neo4jService)
 			throws IOException {
+		extractor = new TopicExtractorImpl();
+		this.neo4jService = neo4jService;
 		this.factory = factory;
 		connection = factory.newConnection();
 		channel = connection.createChannel();
     channel.queueDeclare(queueName, true, false, false, null);
     channel.basicQos(1);
-
-    System.out.println("Creating Topic Extractor...");
-
-		extractor = new TopicExtractorImpl();
-		this.neo4jService = neo4jService;
-
-    System.out.println("Creating Message Consumer...");
-
 		consumer = createMessageConsumer(channel);
-
-		System.out.println("Starting to consume...");
     channel.basicConsume(queueName, false, consumer);
 	}
 
