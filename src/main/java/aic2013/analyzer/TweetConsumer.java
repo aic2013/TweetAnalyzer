@@ -97,7 +97,7 @@ public class TweetConsumer {
 		connection = factory.newConnection();
 		channel = connection.createChannel();
     channel.queueDeclare(queueName, true, false, false, null);
-    channel.basicQos(1);
+    channel.basicQos(5);
 		consumer = createMessageConsumer(channel);
     channel.basicConsume(queueName, false, consumer);
 	}
